@@ -34,3 +34,8 @@ car-price-predictor/
 └── templates/
 └── index.html # HTML form (must be created)
 
+
+👨‍💻 Author
+Nikhil Ahuja
+Intern at Motorpedia - Data Scientist
+
