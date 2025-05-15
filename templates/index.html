@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Used Car Price Predictor</title>
     <style>
         body {
@@ -40,31 +40,43 @@
         .price-bar-container {
             max-width: 500px;
             margin: 40px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #ccc;
         }
         .price-bar {
-            display: flex;
-            align-items: center;
+            position: relative;
             height: 20px;
             background: linear-gradient(to right, gray, teal, lightblue, tomato);
             border-radius: 10px;
-            position: relative;
         }
         .marker {
             position: absolute;
             top: -6px;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             background: black;
             border-radius: 50%;
             transform: translateX(-50%);
+            border: 2px solid white;
+        }
+        .marker.predicted {
+            background-color: gold;
+            border-color: black;
         }
         .labels {
             display: flex;
             justify-content: space-between;
             margin-top: 10px;
-        }
-        .labels div {
             font-weight: bold;
+        }
+        .condition {
+            text-align: center;
+            font-size: 1.2em;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #007b00;
         }
     </style>
 </head>
@@ -83,7 +95,7 @@
         <label>Model:</label>
         <select name="model" required onchange="updateVariants()">
             <option value="">Select Model</option>
-            {% if form_data %}
+            {% if form_data and form_data.make in models %}
             {% for model in models[form_data.make] %}
             <option value="{{ model }}" {% if form_data.model == model %}selected{% endif %}>{{ model }}</option>
             {% endfor %}
@@ -94,9 +106,12 @@
         <select name="variant" required>
             <option value="">Select Variant</option>
             {% if form_data %}
-            {% for variant in variants[form_data.make ~ '|||' ~ form_data.model] %}
+            {% set key = form_data.make ~ '|||' ~ form_data.model %}
+            {% if key in variants %}
+            {% for variant in variants[key] %}
             <option value="{{ variant }}" {% if form_data.variant == variant %}selected{% endif %}>{{ variant }}</option>
             {% endfor %}
+            {% endif %}
             {% endif %}
         </select>
 
@@ -123,10 +138,11 @@
         </select>
 
         <label>KM Driven:</label>
-        <input type="number" name="km_driven" min="0" required value="{{ form_data.km_driven if form_data else '' }}">
+        <input type="number" name="km_driven" min="0" required value="{{ form_data.km_driven if form_data else '' }}" />
 
         <label>Registration Year:</label>
-        <input type="number" name="registration_year" min="1990" max="{{ current_year }}" required value="{{ current_year if not form_data else current_year - form_data.car_age }}">
+        <input type="number" name="registration_year" min="1990" max="{{ current_year }}" required
+            value="{{ current_year if not form_data else current_year - form_data.car_age }}" />
 
         <button type="submit">Predict Price</button>
     </form>
@@ -134,19 +150,18 @@
     {% if prediction %}
     <div class="price-bar-container">
         <h3>Estimated Price Range</h3>
-        <div class="price-bar">
-            <!-- Marker for lower price -->
-            <div class="marker" style="left: 0%;"></div>
-
-            <!-- Marker for predicted price -->
-            <div class="marker" style="left: 50%; background-color: gold;"></div>
-
-            <!-- Marker for upper price -->
-            <div class="marker" style="left: 100%;"></div>
+        <div class="price-bar" id="priceBar">
+            <!-- Markers will be positioned dynamically by script -->
+            <div class="marker" id="markerLow"></div>
+            <div class="marker predicted" id="markerPredicted"></div>
+            <div class="marker" id="markerHigh"></div>
         </div>
         <div class="labels">
-            <div>Fair Condition<br>Rs. {{ "%.2f"|format(price_range_low / 100000) }} Lakh</div>
-            <div>Good Condition<br>Rs. {{ "%.2f"|format(price_range_high / 100000) }} Lakh</div>
+            <div>Lower Estimate<br>Rs. {{ "%.2f"|format(price_range_low / 100000) }} Lakh</div>
+            <div>Upper Estimate<br>Rs. {{ "%.2f"|format(price_range_high / 100000) }} Lakh</div>
+        </div>
+        <div class="condition">
+            Condition: {{ condition }}
         </div>
     </div>
     {% endif %}
@@ -166,6 +181,8 @@
                     modelSelect.appendChild(opt);
                 });
             }
+            // Reset variants on make change
+            updateVariants();
         }
 
         function updateVariants() {
@@ -183,6 +200,29 @@
                 });
             }
         }
+
+        // Position price markers proportionally on the price bar
+        {% if prediction %}
+        (function positionMarkers() {
+            const low = {{ price_range_low }};
+            const pred = {{ prediction }};
+            const high = {{ price_range_high }};
+
+            // Calculate relative percentages
+            const minPrice = Math.min(low, pred, high);
+            const maxPrice = Math.max(low, pred, high);
+            const range = maxPrice - minPrice;
+
+            function getPercent(value) {
+                if (range === 0) return 50;
+                return ((value - minPrice) / range) * 100;
+            }
+
+            document.getElementById('markerLow').style.left = getPercent(low) + '%';
+            document.getElementById('markerPredicted').style.left = getPercent(pred) + '%';
+            document.getElementById('markerHigh').style.left = getPercent(high) + '%';
+        })();
+        {% endif %}
     </script>
 </body>
 </html>
