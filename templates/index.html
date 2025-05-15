@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Used Car Price Predictor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        h1, h3 {
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: teal;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .price-bar-container {
+            max-width: 500px;
+            margin: 40px auto;
+        }
+        .price-bar {
+            display: flex;
+            align-items: center;
+            height: 20px;
+            background: linear-gradient(to right, gray, teal, lightblue, tomato);
+            border-radius: 10px;
+            position: relative;
+        }
+        .marker {
+            position: absolute;
+            top: -6px;
+            width: 12px;
+            height: 12px;
+            background: black;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+        .labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .labels div {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Used Car Price Prediction</h1>
+
+    <form method="POST">
+        <label>Make:</label>
+        <select name="make" required onchange="updateModels(this.value)">
+            <option value="">Select Make</option>
+            {% for make in makes %}
+            <option value="{{ make }}" {% if form_data and form_data.make == make %}selected{% endif %}>{{ make }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Model:</label>
+        <select name="model" required onchange="updateVariants()">
+            <option value="">Select Model</option>
+            {% if form_data %}
+            {% for model in models[form_data.make] %}
+            <option value="{{ model }}" {% if form_data.model == model %}selected{% endif %}>{{ model }}</option>
+            {% endfor %}
+            {% endif %}
+        </select>
+
+        <label>Variant:</label>
+        <select name="variant" required>
+            <option value="">Select Variant</option>
+            {% if form_data %}
+            {% for variant in variants[form_data.make ~ '|||' ~ form_data.model] %}
+            <option value="{{ variant }}" {% if form_data.variant == variant %}selected{% endif %}>{{ variant }}</option>
+            {% endfor %}
+            {% endif %}
+        </select>
+
+        <label>Fuel Type:</label>
+        <select name="fuel_type" required>
+            <option value="Petrol" {% if form_data and form_data.fuel_type == 'Petrol' %}selected{% endif %}>Petrol</option>
+            <option value="Diesel" {% if form_data and form_data.fuel_type == 'Diesel' %}selected{% endif %}>Diesel</option>
+            <option value="CNG" {% if form_data and form_data.fuel_type == 'CNG' %}selected{% endif %}>CNG</option>
+            <option value="Electric" {% if form_data and form_data.fuel_type == 'Electric' %}selected{% endif %}>Electric</option>
+        </select>
+
+        <label>Transmission:</label>
+        <select name="transmission" required>
+            <option value="Manual" {% if form_data and form_data.transmission == 'Manual' %}selected{% endif %}>Manual</option>
+            <option value="Automatic" {% if form_data and form_data.transmission == 'Automatic' %}selected{% endif %}>Automatic</option>
+        </select>
+
+        <label>Owner:</label>
+        <select name="owner" required>
+            <option value="First" {% if form_data and form_data.owner == 'First' %}selected{% endif %}>First</option>
+            <option value="Second" {% if form_data and form_data.owner == 'Second' %}selected{% endif %}>Second</option>
+            <option value="Third" {% if form_data and form_data.owner == 'Third' %}selected{% endif %}>Third</option>
+            <option value="Fourth & Above" {% if form_data and form_data.owner == 'Fourth & Above' %}selected{% endif %}>Fourth & Above</option>
+        </select>
+
+        <label>KM Driven:</label>
+        <input type="number" name="km_driven" min="0" required value="{{ form_data.km_driven if form_data else '' }}">
+
+        <label>Registration Year:</label>
+        <input type="number" name="registration_year" min="1990" max="{{ current_year }}" required value="{{ current_year if not form_data else current_year - form_data.car_age }}">
+
+        <button type="submit">Predict Price</button>
+    </form>
+
+    {% if prediction %}
+    <div class="price-bar-container">
+        <h3>Estimated Price Range</h3>
+        <div class="price-bar">
+            <!-- Marker for lower price -->
+            <div class="marker" style="left: 0%;"></div>
+
+            <!-- Marker for predicted price -->
+            <div class="marker" style="left: 50%; background-color: gold;"></div>
+
+            <!-- Marker for upper price -->
+            <div class="marker" style="left: 100%;"></div>
+        </div>
+        <div class="labels">
+            <div>Fair Condition<br>Rs. {{ "%.2f"|format(price_range_low / 100000) }} Lakh</div>
+            <div>Good Condition<br>Rs. {{ "%.2f"|format(price_range_high / 100000) }} Lakh</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        const modelsData = {{ models | tojson }};
+        const variantsData = {{ variants | tojson }};
+
+        function updateModels(make) {
+            const modelSelect = document.querySelector('select[name="model"]');
+            modelSelect.innerHTML = '<option value="">Select Model</option>';
+            if (modelsData[make]) {
+                modelsData[make].forEach(model => {
+                    const opt = document.createElement('option');
+                    opt.value = model;
+                    opt.text = model;
+                    modelSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function updateVariants() {
+            const make = document.querySelector('select[name="make"]').value;
+            const model = document.querySelector('select[name="model"]').value;
+            const variantSelect = document.querySelector('select[name="variant"]');
+            variantSelect.innerHTML = '<option value="">Select Variant</option>';
+            const key = `${make}|||${model}`;
+            if (variantsData[key]) {
+                variantsData[key].forEach(variant => {
+                    const opt = document.createElement('option');
+                    opt.value = variant;
+                    opt.text = variant;
+                    variantSelect.appendChild(opt);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
