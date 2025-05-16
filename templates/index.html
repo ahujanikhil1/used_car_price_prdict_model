@@ -131,10 +131,11 @@
 
         <label>Owner:</label>
         <select name="owner" required>
-            <option value="First" {% if form_data and form_data.owner == 'First' %}selected{% endif %}>First</option>
-            <option value="Second" {% if form_data and form_data.owner == 'Second' %}selected{% endif %}>Second</option>
-            <option value="Third" {% if form_data and form_data.owner == 'Third' %}selected{% endif %}>Third</option>
-            <option value="Fourth & Above" {% if form_data and form_data.owner == 'Fourth & Above' %}selected{% endif %}>Fourth & Above</option>
+            <option value="1st Owner" {% if form_data and form_data.owner == '1st Owner' %}selected{% endif %}>1st Owner</option>
+            <option value="2nd Owner" {% if form_data and form_data.owner == '2nd Owner' %}selected{% endif %}>2nd Owner</option>
+            <option value="3rd Owner" {% if form_data and form_data.owner == '3rd Owner' %}selected{% endif %}>3rd Owner</option>
+            <option value="4th Owner Or More" {% if form_data and form_data.owner == '4th Owner Or More' %}selected{% endif %}>4th Owner Or More</option>
+            <option value="Test Drive Car" {% if form_data and form_data.owner == 'Test Drive Car' %}selected{% endif %}>Test Drive Car</option>
         </select>
 
         <label>KM Driven:</label>
