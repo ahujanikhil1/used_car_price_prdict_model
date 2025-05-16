@@ -136,19 +136,14 @@ model = Pipeline(steps=[
 
 model.fit(X, y)
 
-def evaluate_car_condition_by_year_and_km(reg_year, km_driven, predicted_price):
-    """
-    Assign condition and price multiplier strictly based on registration year (2008-2025).
-    Newer year = better condition and higher price multiplier.
-    Kilometer ranges decrease price multiplier as km increases.
-    """
+def evaluate_car_condition_by_year_and_km(reg_year, km_driven, predicted_price, owner):
     # Clamp reg_year to 2008-2025 range
     if reg_year < 2008:
         reg_year = 2008
     if reg_year > 2025:
         reg_year = 2025
 
-    # Condition labels ordered from oldest (2008) to newest (2025)
+    # Condition labels ordered from 2008 to 2025
     conditions_list = [
         "Old", "Very Old", "Old", "Older", "Older", "Fair", "Fair",
         "Average", "Average", "Good", "Good", "Better", "Better",
@@ -157,13 +152,13 @@ def evaluate_car_condition_by_year_and_km(reg_year, km_driven, predicted_price):
     year_index = reg_year - 2008
     condition = conditions_list[year_index]
 
-    # Linear multiplier from 0.5 (2008) to 1.2 (2025)
+    # Year-based multiplier (2008 = 0.5, 2025 = 1.2)
     min_multiplier = 0.5
     max_multiplier = 1.2
     total_years = 2025 - 2008
     year_multiplier = min_multiplier + ((year_index / total_years) * (max_multiplier - min_multiplier))
 
-    # Kilometer brackets with respective multipliers
+    # KM brackets
     km_brackets = [
         (0, 5000, 1.0),
         (5001, 10000, 0.95),
@@ -177,14 +172,23 @@ def evaluate_car_condition_by_year_and_km(reg_year, km_driven, predicted_price):
         (80001, 90000, 0.55),
         (90001, 100000, 0.5),
     ]
-
-    km_multiplier = 0.5  # Default if km > 100000
+    km_multiplier = 0.5
     for low, high, mult in km_brackets:
         if low <= km_driven <= high:
             km_multiplier = mult
             break
 
-    final_multiplier = year_multiplier * km_multiplier
+    # Owner-based multiplier
+    owner_multipliers = {
+        "1st Owner": 1.0,
+        "2nd Owner": 0.9,
+        "3rd Owner": 0.8,
+        "4th Owner Or More": 0.7,
+        "Test Drive Car": 0.6
+    }
+    owner_multiplier = owner_multipliers.get(owner, 0.8)
+
+    final_multiplier = year_multiplier * km_multiplier * owner_multiplier
     adjusted_price = predicted_price * final_multiplier
 
     low_price = round(adjusted_price * 0.95, 2)
@@ -208,6 +212,7 @@ def index():
     if request.method == "POST":
         reg_year = int(request.form["registration_year"])
         km_driven = int(request.form["km_driven"])
+        owner = request.form["owner"]
 
         input_data = {
             "make": request.form["make"],
@@ -215,7 +220,7 @@ def index():
             "variant": request.form["variant"],
             "fuel_type": request.form["fuel_type"],
             "transmission": request.form["transmission"],
-            "owner": request.form["owner"],
+            "owner": owner,
             "km_driven": km_driven,
             "car_age": current_year - reg_year
         }
@@ -224,7 +229,7 @@ def index():
         predicted_price = model.predict(input_df)[0]
 
         condition, price_range_low, price_range_high = evaluate_car_condition_by_year_and_km(
-            reg_year, km_driven, predicted_price
+            reg_year, km_driven, predicted_price, owner
         )
 
         prediction = round(predicted_price, 2)
@@ -256,7 +261,10 @@ def index():
     )
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # Defaults to 8080 if PORT not set
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=True)
+
+
+
 
 
